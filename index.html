@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Mapa Fenológico">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#F4F4F6">
+<link rel="manifest" href='data:application/manifest+json,{"name":"Mapa Fenológico","short_name":"Mapa Fen.","start_url":"./","scope":"./","display":"standalone","orientation":"portrait","background_color":"%23F4F4F6","theme_color":"%231428A0","description":"Planejamento fenológico de soja com consolidação econômica","icons":[{"src":"data:image/svg%2Bxml,%3Csvg xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27 viewBox%3D%270 0 192 192%27%3E%3Crect width%3D%27192%27 height%3D%27192%27 rx%3D%2742%27 fill%3D%27%231428A0%27%2F%3E%3Ctext x%3D%2796%27 y%3D%27122%27 text-anchor%3D%27middle%27 font-family%3D%27-apple-system%2CHelvetica%27 font-size%3D%2796%27 font-weight%3D%27700%27 fill%3D%27white%27%3EM%3C%2Ftext%3E%3C%2Fsvg%3E","sizes":"192x192","type":"image/svg+xml"},{"src":"data:image/svg%2Bxml,%3Csvg xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27 viewBox%3D%270 0 512 512%27%3E%3Crect width%3D%27512%27 height%3D%27512%27 rx%3D%27112%27 fill%3D%27%231428A0%27%2F%3E%3Ctext x%3D%27256%27 y%3D%27328%27 text-anchor%3D%27middle%27 font-family%3D%27-apple-system%2CHelvetica%27 font-size%3D%27256%27 font-weight%3D%27700%27 fill%3D%27white%27%3EM%3C%2Ftext%3E%3C%2Fsvg%3E","sizes":"512x512","type":"image/svg+xml"}]}'>
+<title>Mapa Fenológico</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --blue: #007AFF; --blue-dark: #0051D5;
+  --samsung-blue: #1428A0;
+  --green: #34C759; --green-dark: #248A3D;
+  --red: #FF3B30;
+  --white: #FFFFFF; --bg: #F4F4F6;
+  --bg-secondary: #EFEFF1; --text: #1D1D1F;
+  --text-secondary: #86868B; --text-tertiary: #C7C7CC;
+  --border: #D1D1D6; --border-soft: #E5E5E7;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 2px 6px rgba(0,0,0,.03);
+  --radius-sm: 10px; --radius-xs: 7px;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+html, body { height:100%; overflow:hidden; font-family:var(--font); background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; -webkit-tap-highlight-color:transparent; user-select:none; }
+
+/* TOPBAR */
+.topbar { position:fixed; top:0; left:0; right:0; height:50px; background:rgba(244,244,246,.95); backdrop-filter:saturate(180%) blur(20px); -webkit-backdrop-filter:saturate(180%) blur(20px); border-bottom:0.5px solid var(--border-soft); display:flex; align-items:center; justify-content:space-between; padding:0 14px; z-index:100; }
+.app-logo { display:flex; align-items:center; gap:8px; }
+.app-name { font-size:.95em; font-weight:600; color:var(--text); outline:none; border-bottom:1px solid transparent; transition:border-color .2s; max-width:160px; }
+.app-name:focus { border-bottom-color:var(--blue); }
+.topbar-right { display:flex; align-items:center; gap:2px; }
+.btn-tb { width:34px; height:34px; background:none; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; border-radius:8px; transition:background .15s; }
+.btn-tb:active { background:rgba(0,0,0,.06); }
+.btn-tb.active-tab { background:rgba(0,122,255,.1); }
+.btn-tb.active-tab svg path, .btn-tb.active-tab svg rect, .btn-tb.active-tab svg line, .btn-tb.active-tab svg circle { stroke:var(--blue); }
+.btn-hamburger { width:34px; height:34px; background:none; border:none; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:5px; cursor:pointer; border-radius:8px; }
+.btn-hamburger:active { background:rgba(0,0,0,.06); }
+.btn-hamburger span { display:block; width:18px; height:1.8px; background:var(--text); border-radius:2px; }
+
+/* CANVAS */
+.canvas { position:fixed; top:50px; left:0; right:0; bottom:0; overflow:auto; -webkit-overflow-scrolling:touch; background:#F4F4F6; }
+.canvas-inner { min-height:calc(100vh - 50px); padding:16px 14px 28px; display:flex; flex-direction:column; }
+.canvas-hint { display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center; color:var(--text-tertiary); font-size:.82em; padding:48px 30px 16px; pointer-events:none; }
+.canvas-hint strong { color:var(--text-secondary); }
+.canvas-hint-icon { width:46px; height:46px; border-radius:50%; background:var(--bg-secondary); display:flex; align-items:center; justify-content:center; font-size:1.5em; color:var(--text-tertiary); }
+
+/* HEADER CARD — label esquerda / input direita */
+.header-card { background:rgba(255,255,255,.95); border:1px solid var(--border-soft); border-radius:var(--radius-sm); box-shadow:var(--shadow-sm); padding:10px 14px; margin-bottom:14px; display:flex; flex-direction:column; gap:7px; }
+.hf-row { display:flex; align-items:center; border-bottom:.5px solid var(--border-soft); padding:5px 0; gap:10px; }
+.hf-row:last-child { border-bottom:none; }
+.hf-label { font-size:.66em; font-weight:600; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; min-width:90px; flex-shrink:0; }
+.hf-input { flex:1; border:none; outline:none; background:transparent; font-size:.86em; font-weight:500; color:var(--text); font-family:var(--font); user-select:text; -webkit-user-select:text; }
+.hf-input::placeholder { color:var(--text-tertiary); font-weight:400; }
+.hf-input:focus { color:var(--blue); }
+.hf-input-sm { max-width:80px; }
+
+/* STAGE BLOCKS */
+.stage-block { display:flex; flex-direction:column; align-items:flex-start; margin-bottom:8px; animation:fadeInUp .2s ease; }
+@keyframes fadeInUp { from {opacity:0; transform:translateY(5px);} to {opacity:1; transform:translateY(0);} }
+.stage-phase-label { font-size:.66em; font-weight:600; color:var(--text-secondary); letter-spacing:.7px; text-transform:uppercase; margin-left:2px; margin-bottom:6px; cursor:text; outline:none; border-bottom:1px solid transparent; transition:border-color .2s, color .2s; }
+.stage-phase-label:focus { color:var(--blue); border-bottom-color:var(--blue); }
+.stage-layout { display:flex; flex-direction:row; align-items:flex-start; gap:9px; overflow-x:auto; padding-bottom:4px; width:100%; }
+.stage-layout::-webkit-scrollbar { display:none; }
+
+.stage-circle { width:58px; height:58px; border-radius:50%; background:#EFEFF1; border:1.5px solid var(--border-soft); display:flex; align-items:center; justify-content:center; font-size:1.1em; font-weight:700; color:var(--text); cursor:pointer; transition:transform .2s; overflow:hidden; flex-shrink:0; margin-top:2px; }
+.stage-circle img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+.stage-circle:active { transform:scale(.94); }
+.stage-divider { width:40px; height:1px; background:var(--border-soft); margin:10px 0 10px 28px; }
+
+/* OP CARD */
+.op-card { background:rgba(255,255,255,.95); border:1px solid var(--border-soft); border-radius:var(--radius-sm); box-shadow:var(--shadow-sm); padding:8px 11px 9px; min-width:230px; max-width:300px; flex-shrink:0; display:flex; flex-direction:column; }
+.op-product-list { display:flex; flex-direction:column; }
+.op-product-empty { font-size:.78em; color:var(--text-tertiary); font-style:italic; padding:4px 0; }
+.op-prod { padding:6px 0; border-bottom:.5px solid var(--border-soft); }
+.op-prod:last-child { border-bottom:none; }
+.op-prod-row1 { display:flex; align-items:center; gap:7px; font-size:.85em; color:var(--text); }
+.op-prod-dot { width:5px; height:5px; border-radius:50%; background:var(--green); flex-shrink:0; }
+.op-prod-name { flex:1; font-weight:500; outline:none; user-select:text; -webkit-user-select:text; border-bottom:1px solid transparent; transition:border-color .15s; padding-bottom:1px; min-width:30px; }
+.op-prod-name:focus { border-bottom-color:var(--blue); }
+.op-prod-total { font-size:.78em; color:var(--text-secondary); white-space:nowrap; font-weight:500; }
+.op-prod-del { background:none; border:none; font-size:.95em; color:var(--text-tertiary); cursor:pointer; padding:1px 3px; border-radius:3px; line-height:1; opacity:.5; transition:opacity .15s, color .15s; }
+.op-prod-del:active { opacity:1; color:var(--red); }
+.op-prod-row2 { display:flex; align-items:center; gap:5px; padding-left:12px; margin-top:3px; flex-wrap:wrap; }
+.op-edit { border:none; outline:none; background:transparent; font-size:.78em; color:var(--text); font-family:var(--font); border-bottom:1px dashed var(--border); width:38px; text-align:center; padding:1px 2px; user-select:text; -webkit-user-select:text; }
+.op-edit:focus { border-bottom-color:var(--blue); color:var(--blue); }
+.op-edit-area { width:42px; }
+.op-edit-sep { font-size:.7em; color:var(--text-tertiary); }
+.op-unit-select { border:none; outline:none; background:transparent; font-size:.74em; color:var(--text-secondary); font-family:var(--font); cursor:pointer; padding:1px 12px 1px 2px; appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'><path d='M1 1L4 4L7 1' stroke='%2386868B' stroke-width='1.4' stroke-linecap='round' fill='none'/></svg>"); background-repeat:no-repeat; background-position:right center; }
+.op-add-row { display:flex; align-items:center; gap:5px; padding:5px 0 1px; border-top:.5px solid var(--border-soft); margin-top:4px; }
+.op-add-input { flex:1; font-size:.8em; border:none; outline:none; color:var(--text); background:transparent; font-family:var(--font); user-select:text; -webkit-user-select:text; }
+.op-add-input::placeholder { color:var(--text-tertiary); }
+.op-add-btn { background:none; border:none; font-size:1em; color:var(--text-tertiary); cursor:pointer; padding:2px 3px; border-radius:3px; line-height:1; }
+.op-add-btn:active { color:var(--blue); }
+
+/* CAT STRIP — círculos com letras, sem cor */
+.cat-strip { display:flex; flex-direction:column; gap:5px; padding:2px 0; align-items:center; flex-shrink:0; }
+.cat-btn { width:28px; height:28px; border-radius:50%; border:1px solid var(--border); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .15s; background:white; font-size:.72em; font-weight:700; color:var(--text-secondary); font-family:var(--font); }
+.cat-btn:active { transform:scale(.9); }
+.cat-btn.active { background:var(--text); color:white; border-color:var(--text); }
+
+.mini-card { background:rgba(255,255,255,.97); border:1px solid var(--border-soft); border-radius:var(--radius-sm); box-shadow:var(--shadow-sm); padding:8px 10px; min-width:140px; max-width:180px; flex-shrink:0; animation:fadeInLeft .18s ease; align-self:flex-start; }
+@keyframes fadeInLeft { from {opacity:0; transform:translateX(-4px);} to {opacity:1; transform:translateX(0);} }
+.mini-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+.mini-card-title { font-size:.66em; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text); }
+.mini-card-close { background:none; border:none; font-size:.9em; color:var(--text-tertiary); cursor:pointer; padding:1px 2px; line-height:1; }
+.mini-card-close:active { color:var(--red); }
+.mini-card-item { padding:4px 0; border-bottom:.5px solid var(--border-soft); font-size:.76em; color:var(--text); }
+.mini-card-item:last-child { border-bottom:none; }
+.mini-card-empty { font-size:.72em; color:var(--text-tertiary); font-style:italic; padding:3px 0; }
+
+/* CONSOLIDAÇÃO */
+.consol-view { display:none; flex-direction:column; gap:12px; }
+.consol-params-card { background:rgba(255,255,255,.95); border:1px solid var(--border-soft); border-radius:var(--radius-sm); box-shadow:var(--shadow-sm); padding:10px 14px; display:flex; flex-direction:column; gap:7px; }
+.cparam-row { display:flex; align-items:center; border-bottom:.5px solid var(--border-soft); padding:5px 0; gap:10px; }
+.cparam-row:last-child { border-bottom:none; }
+.cparam-label { font-size:.66em; font-weight:600; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; flex:1; }
+.cparam-input { border:none; outline:none; background:transparent; font-size:.86em; font-weight:500; color:var(--text); font-family:var(--font); user-select:text; -webkit-user-select:text; max-width:100px; text-align:right; }
+.cparam-input::placeholder { color:var(--text-tertiary); font-weight:400; }
+.cparam-input:focus { color:var(--blue); }
+.cparam-input-date { max-width:140px; }
+
+.consol-table-card { background:rgba(255,255,255,.95); border:1px solid var(--border-soft); border-radius:var(--radius-sm); box-shadow:var(--shadow-sm); overflow:hidden; }
+.ctab-header { display:grid; grid-template-columns:1fr 70px 70px 76px; padding:8px 12px; background:var(--bg-secondary); border-bottom:1px solid var(--border-soft); }
+.ctab-header span { font-size:.62em; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.5px; }
+.ctab-header span:not(:first-child) { text-align:right; }
+.ctab-row { display:grid; grid-template-columns:1fr 70px 70px 76px; padding:9px 12px; border-bottom:.5px solid var(--border-soft); align-items:center; }
+.ctab-row:last-child { border-bottom:none; }
+.ctab-name { font-size:.83em; color:var(--text); font-weight:500; }
+.ctab-edit { font-size:.81em; border:none; background:transparent; outline:none; text-align:right; font-family:var(--font); color:var(--text); border-bottom:1px dashed var(--border); width:100%; user-select:text; -webkit-user-select:text; }
+.ctab-edit:focus { border-bottom-color:var(--blue); color:var(--blue); }
+.ctab-total { font-size:.83em; font-weight:600; color:var(--text); text-align:right; }
+
+.consol-summary-card { background:rgba(255,255,255,.95); border:1px solid var(--border-soft); border-radius:var(--radius-sm); box-shadow:var(--shadow-sm); padding:12px 14px; display:flex; flex-direction:column; gap:8px; }
+.csum-row { display:flex; justify-content:space-between; align-items:center; }
+.csum-label { font-size:.8em; color:var(--text-secondary); }
+.csum-value { font-size:.9em; font-weight:600; color:var(--text); }
+.csum-divider { height:1px; background:var(--border-soft); }
+.csum-big { font-size:1em; font-weight:700; color:var(--blue); }
+
+/* RODAPÉ — minimalista, sem bordas dashed */
+.footer-card { background:rgba(255,255,255,.95); border:1px solid var(--border-soft); border-radius:var(--radius-sm); box-shadow:var(--shadow-sm); padding:11px 14px; margin-top:6px; }
+.footer-row { display:flex; align-items:center; gap:10px; }
+.footer-logo { width:42px; height:42px; border-radius:8px; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; flex-shrink:0; background:var(--bg-secondary); }
+.footer-logo img { width:100%; height:100%; object-fit:contain; border-radius:8px; }
+.footer-logo svg { opacity:.35; }
+.footer-consult { flex:1; display:flex; align-items:center; gap:10px; }
+.footer-label { font-size:.66em; font-weight:600; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; }
+.footer-input { flex:1; border:none; outline:none; background:transparent; font-size:.86em; color:var(--text); font-family:var(--font); user-select:text; -webkit-user-select:text; border-bottom:1px solid transparent; padding-bottom:1px; transition:border-color .15s; }
+.footer-input:focus { border-bottom-color:var(--blue); color:var(--blue); }
+.footer-input::placeholder { color:var(--text-tertiary); }
+.footer-fab { width:38px; height:38px; border-radius:50%; background:var(--samsung-blue); border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(20,40,160,.3); transition:transform .15s; flex-shrink:0; }
+.footer-fab:active { transform:scale(.92); }
+.footer-link { margin-top:9px; padding-top:8px; border-top:.5px solid var(--border-soft); display:flex; align-items:center; gap:6px; }
+.footer-link a { font-size:.72em; color:var(--blue); text-decoration:none; display:flex; align-items:center; gap:4px; }
+.footer-link-label { font-size:.68em; color:var(--text-tertiary); }
+
+/* DRAWER */
+.drawer-overlay { position:fixed; inset:0; background:rgba(0,0,0,.18); z-index:200; opacity:0; pointer-events:none; transition:opacity .25s; }
+.drawer-overlay.active { opacity:1; pointer-events:all; }
+.drawer { position:fixed; top:0; right:0; bottom:0; width:min(340px,88vw); background:#F4F4F6; z-index:201; transform:translateX(100%); transition:transform .28s cubic-bezier(.4,0,.2,1); display:flex; flex-direction:column; box-shadow:-4px 0 24px rgba(0,0,0,.08); }
+.drawer.open { transform:translateX(0); }
+.drawer-header { padding:14px 18px 12px; display:flex; align-items:center; justify-content:space-between; border-bottom:.5px solid var(--border-soft); }
+.drawer-title { font-size:.95em; font-weight:600; }
+.drawer-close { width:30px; height:30px; background:var(--bg-secondary); border:none; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.drawer-body { flex:1; overflow-y:auto; padding:6px 0; }
+.drawer-section { border-bottom:.5px solid var(--border-soft); }
+.drawer-section-header { display:flex; align-items:center; gap:11px; padding:11px 18px; cursor:pointer; transition:background .15s; }
+.drawer-section-header:active { background:var(--bg-secondary); }
+.drawer-letter { width:30px; height:30px; border-radius:50%; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:.78em; font-weight:700; color:var(--text-secondary); background:white; }
+.drawer-section-title { font-size:.86em; font-weight:600; }
+.drawer-section-sub { font-size:.72em; color:var(--text-secondary); margin-top:1px; }
+.drawer-chevron { margin-left:auto; transition:transform .2s; }
+.drawer-section-header.open .drawer-chevron { transform:rotate(180deg); }
+.drawer-section-content { display:none; padding:0 18px 12px; background:rgba(255,255,255,.5); }
+.drawer-section-content.open { display:block; }
+.ref-item { display:flex; align-items:baseline; gap:9px; padding:6px 0; border-bottom:.5px solid var(--border-soft); }
+.ref-item:last-child { border-bottom:none; }
+.ref-code { font-size:.74em; font-weight:700; color:var(--green-dark); min-width:38px; }
+.ref-desc { font-size:.78em; color:var(--text-secondary); }
+.ref-group { margin-bottom:8px; }
+.ref-group-title { font-size:.66em; font-weight:600; color:var(--text-tertiary); letter-spacing:.5px; text-transform:uppercase; padding:8px 0 4px; }
+.ref-row { padding:5px 0; border-bottom:.5px solid var(--border-soft); }
+.ref-row:last-child { border-bottom:none; }
+.ref-row-name { font-size:.8em; font-weight:600; color:var(--text); }
+
+/* MODAL */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.22); z-index:300; display:none; align-items:flex-end; justify-content:center; }
+.modal-overlay.active { display:flex; }
+.modal { width:100%; max-width:420px; background:var(--white); border-radius:18px 18px 0 0; padding:0 0 max(18px, env(safe-area-inset-bottom,18px)); box-shadow:0 -4px 24px rgba(0,0,0,.1); animation:slideUp .25s cubic-bezier(.4,0,.2,1); }
+@keyframes slideUp { from {transform:translateY(100%);} to {transform:translateY(0);} }
+.modal-header { padding:14px 18px 10px; display:flex; align-items:center; justify-content:space-between; border-bottom:.5px solid var(--border-soft); }
+.modal-title { font-size:.92em; font-weight:600; }
+.modal-close { width:26px; height:26px; background:var(--bg-secondary); border:none; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.modal-body { padding:12px 18px; }
+.modal-footer { padding:10px 18px 0; display:flex; gap:8px; justify-content:flex-end; }
+.field-label { display:block; font-size:.7em; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.5px; margin-bottom:5px; }
+.field-input, .field-select { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:var(--radius-xs); font-size:.85em; color:var(--text); background:var(--white); font-family:var(--font); outline:none; user-select:text; -webkit-user-select:text; }
+.field-select { padding-right:26px; appearance:none; -webkit-appearance:none; cursor:pointer; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'><path d='M1 1L5 6L9 1' stroke='%2386868B' stroke-width='1.5' stroke-linecap='round' fill='none'/></svg>"); background-repeat:no-repeat; background-position:right 10px center; }
+.field-input:focus, .field-select:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(0,122,255,.1); }
+input[type="number"] { -moz-appearance:textfield; }
+input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance:none; }
+.btn-primary { padding:8px 16px; background:var(--samsung-blue); color:white; border:none; border-radius:var(--radius-xs); font-size:.85em; font-weight:600; cursor:pointer; font-family:var(--font); }
+.btn-secondary { padding:8px 16px; background:var(--bg-secondary); color:var(--text-secondary); border:none; border-radius:var(--radius-xs); font-size:.85em; font-weight:500; cursor:pointer; font-family:var(--font); }
+
+.plan-view { display:flex; flex-direction:column; flex:1; }
+.plan-view.hidden { display:none; }
+.consol-view { flex:1; }
+.consol-view.active { display:flex; }
+.plan-view .footer-card, .consol-view .footer-card { margin-top:auto; }
+.canvas-inner { min-height:calc(100vh - 50px); }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="app-logo">
+    <span class="app-name" id="appTitle" contenteditable="true" spellcheck="false">Minha Lavoura</span>
+  </div>
+  <div class="topbar-right">
+    <button class="btn-tb active-tab" id="btnTabPlan" title="Planejamento">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <rect x="2" y="2.5" width="14" height="13" rx="2.2" stroke="#1D1D1F" stroke-width="1.4"/>
+        <line x1="5" y1="6" x2="13" y2="6" stroke="#1D1D1F" stroke-width="1.3" stroke-linecap="round"/>
+        <line x1="5" y1="9" x2="10.5" y2="9" stroke="#1D1D1F" stroke-width="1.3" stroke-linecap="round"/>
+        <line x1="5" y1="12" x2="8.5" y2="12" stroke="#1D1D1F" stroke-width="1.3" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <button class="btn-tb" id="btnTabConsol" title="Consolidação">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <line x1="2.5" y1="5" x2="15.5" y2="5" stroke="#1D1D1F" stroke-width="1.3" stroke-linecap="round"/>
+        <line x1="2.5" y1="9" x2="15.5" y2="9" stroke="#1D1D1F" stroke-width="1.3" stroke-linecap="round"/>
+        <line x1="2.5" y1="13" x2="9.5" y2="13" stroke="#1D1D1F" stroke-width="1.3" stroke-linecap="round"/>
+        <circle cx="13" cy="13" r="2.8" stroke="#1D1D1F" stroke-width="1.2" fill="none"/>
+        <path d="M12.2 13L13 13.7L14 12.5" stroke="#1D1D1F" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>
+    </button>
+    <button class="btn-hamburger" id="btnHamburger"><span></span><span></span><span></span></button>
+  </div>
+</header>
+
+<main class="canvas">
+  <div class="canvas-inner">
+
+    <!-- PLANEJAMENTO -->
+    <div class="plan-view" id="planView">
+      <div class="header-card">
+        <div class="hf-row"><span class="hf-label">Produtor</span><input class="hf-input" id="hProdutor" type="text" placeholder="Nome do produtor"></div>
+        <div class="hf-row"><span class="hf-label">Fazenda</span><input class="hf-input" id="hFazenda" type="text" placeholder="Nome da fazenda"></div>
+        <div class="hf-row"><span class="hf-label">Cidade / UF</span><input class="hf-input" id="hCidade" type="text" placeholder="Cidade / Estado"></div>
+        <div class="hf-row"><span class="hf-label">Área (ha)</span><input class="hf-input hf-input-sm" id="hArea" type="number" placeholder="0" maxlength="7"></div>
+        <div class="hf-row"><span class="hf-label">Safra / Talhão</span><input class="hf-input" id="hSafra" type="text" placeholder="Ex: 2025/26 — T01"></div>
+      </div>
+
+      <div class="canvas-hint" id="canvasHint">
+        <div class="canvas-hint-icon">+</div>
+        <p>Adicione o primeiro <strong>estádio</strong></p>
+      </div>
+      <div id="stagesContainer"></div>
+
+      <div class="footer-card">
+        <div class="footer-row">
+          <label class="footer-logo" id="footerLogoArea" title="Logo">
+            <input type="file" accept="image/*" id="footerLogoInput" style="display:none">
+            <svg id="footerLogoPlaceholder" width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <rect x="2" y="5" width="16" height="12" rx="2" stroke="#86868B" stroke-width="1.4"/>
+              <circle cx="10" cy="11" r="2.8" stroke="#86868B" stroke-width="1.3"/>
+              <path d="M7.5 5l1-2h3l1 2" stroke="#86868B" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+            <img id="footerLogoImg" style="display:none;">
+          </label>
+          <div class="footer-consult">
+            <span class="footer-label">Consultor</span>
+            <input class="footer-input" id="footerConsultor" type="text" placeholder="Nome do consultor">
+          </div>
+          <button class="footer-fab" id="btnNewStage" title="Novo estádio">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 3.5V14.5M3.5 9H14.5" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="footer-link">
+          <span class="footer-link-label">Ferramenta:</span>
+          <a href="https://afonsoraudinei.github.io/Mapa-fenologico/" target="_blank" rel="noopener">afonsoraudinei.github.io/Mapa-fenologico/</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONSOLIDAÇÃO -->
+    <div class="consol-view" id="consolView">
+      <div class="header-card" id="consolHeaderCard"><div id="consolHeaderInfo"></div></div>
+
+      <div class="consol-params-card">
+        <div class="cparam-row"><span class="cparam-label">Valor do grão (R$/sc 60 kg)</span><input class="cparam-input" id="consolGrainPrice" type="number" placeholder="0,00" maxlength="7"></div>
+        <div class="cparam-row"><span class="cparam-label">Data de vencimento</span><input class="cparam-input cparam-input-date" id="consolDueDate" type="date"></div>
+      </div>
+
+      <div class="consol-table-card">
+        <div class="ctab-header"><span>Produto</span><span>Qtd.</span><span>R$ Unit.</span><span>R$ Total</span></div>
+        <div id="consolTableBody"></div>
+      </div>
+
+      <div class="consol-summary-card">
+        <div class="csum-row"><span class="csum-label">Total investimento</span><span class="csum-value csum-big" id="consolTotalInvest">R$ 0,00</span></div>
+        <div class="csum-divider"></div>
+        <div class="csum-row"><span class="csum-label">Custo / hectare</span><span class="csum-value" id="consolCostHa">— / ha</span></div>
+        <div class="csum-row"><span class="csum-label">Custo em sacas</span><span class="csum-value" id="consolCostSc">—</span></div>
+        <div class="csum-row" id="consolDueDateRow" style="display:none"><span class="csum-label">Vencimento</span><span class="csum-value" id="consolDueDateDisplay">—</span></div>
+      </div>
+
+      <div class="footer-card">
+        <div class="footer-row" id="consolFooterRow"></div>
+        <div class="footer-link">
+          <span class="footer-link-label">Ferramenta:</span>
+          <a href="https://afonsoraudinei.github.io/Mapa-fenologico/" target="_blank" rel="noopener">afonsoraudinei.github.io/Mapa-fenologico/</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- DRAWER -->
+<div class="drawer-overlay" id="drawerOverlay"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-header">
+    <span class="drawer-title">Referências Técnicas</span>
+    <button class="drawer-close" id="drawerClose">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2L12 12M12 2L2 12" stroke="#1D1D1F" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+</aside>
+
+<!-- MODAL NOVO ESTÁDIO -->
+<div class="modal-overlay" id="modalStageOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Novo Estádio</span>
+      <button class="modal-close" id="modalStageClose">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 2L11 11M11 2L2 11" stroke="#1D1D1F" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <label class="field-label">Estádio</label>
+      <select class="field-select" id="stageCodeSelect">
+        <option value="">Selecionar...</option>
+        <option value="Operacional">Operacional</option>
+        <option>VE</option><option>VC</option>
+        <option>V1</option><option>V2</option><option>V3</option>
+        <option>V4</option><option>V5</option><option>V6</option>
+        <option>R1</option><option>R2</option><option>R3</option><option>R4</option>
+        <option>R5.1</option><option>R5.3</option><option>R5.5</option>
+        <option>R6</option><option>R7</option><option>R8</option>
+      </select>
+      <label class="field-label" style="margin-top:10px;">Nome da Fase</label>
+      <input class="field-input" id="stagePhaseName" type="text" placeholder="Ex: Plantio, Pré-florada...">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="modalStageCancelBtn">Cancelar</button>
+      <button class="btn-primary" id="modalStageConfirmBtn">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* CATEGORIAS — letras D / I / N / H / C */
+var CAT_META = {
+  D: { label:'Doenças',     full:'Doenças' },
+  I: { label:'Insetos',     full:'Insetos' },
+  N: { label:'Nutricional', full:'Nutricional' },
+  H: { label:'Hormônios',   full:'Hormônios e fisiologia' },
+  C: { label:'Campeões',    full:'Dicas de Campeão (CESB)' }
+};
+
+var STAGE_REF = {
+  D: {'VE':['Tombamento (Rhizoctonia)','Podridão de raiz (Fusarium)','Mela'],'VC':['Tombamento (Rhizoctonia)','Podridão de raiz (Fusarium)'],'V1':['Crestamento bacteriano','Mancha parda (Septoria)','Tombamento'],'V2':['Crestamento bacteriano','Mancha parda','Cercospora'],'V3':['Mancha-alvo (Corynespora)','Crestamento bacteriano','Cercospora'],'V4':['Mancha-alvo (Corynespora)','Oídio (Erysiphe)','Mancha parda'],'V5':['Mancha-alvo','Oídio','Ferrugem Asiática (início)'],'V6':['Ferrugem Asiática (Phakopsora)','Oídio','Mancha-alvo'],'R1':['Ferrugem Asiática','Oídio','Antracnose (Colletotrichum)'],'R2':['Ferrugem Asiática','Antracnose','Esclerotinia'],'R3':['Ferrugem Asiática','Esclerotinia','Antracnose'],'R4':['Ferrugem Asiática','Esclerotinia','Podridão-parda da haste'],'R5.1':['Ferrugem Asiática','Podridão-parda da haste','Mancha-púrpura'],'R5.3':['Podridão-parda da haste','Mancha-púrpura','Cercospora grão'],'R5.5':['Mancha-púrpura','Podridão-parda da haste'],'R6':['Mancha-púrpura','Podridão da vagem'],'R7':['Mancha-púrpura','Antracnose vagem'],'R8':['Antracnose','Deterioração por umidade'],'Operacional':[]},
+  I: {'VE':['Trips (Frankliniella)','Mosca-branca (Bemisia)'],'VC':['Trips','Mosca-branca','Vaquinha (Diabrotica)'],'V1':['Lagarta-da-soja','Trips','Vaquinha'],'V2':['Lagarta-da-soja','Falsa-medideira','Trips'],'V3':['Lagarta-da-soja','Falsa-medideira','Mosca-branca'],'V4':['Lagarta-da-soja','Falsa-medideira','Lagarta-elasmo'],'V5':['Lagarta-da-soja','Falsa-medideira','Percevejo-marrom (início)'],'V6':['Lagarta-da-soja','Falsa-medideira','Percevejo-marrom'],'R1':['Percevejo-marrom (E. heros)','Percevejo-verde','Lagarta'],'R2':['Percevejo-marrom','Percevejo-verde','Lagarta-da-soja'],'R3':['Percevejo-marrom','Percevejo-verde','Helicoverpa armigera'],'R4':['Percevejo-marrom','Percevejo-verde','Helicoverpa armigera'],'R5.1':['Percevejo-marrom','Percevejo-verde','Helicoverpa','Tamanduá-da-soja'],'R5.3':['Percevejo-marrom NA: 1/m','Percevejo-verde NA: 1/m','Helicoverpa'],'R5.5':['Percevejo-marrom NA: 1/m','Tamanduá-da-soja'],'R6':['Percevejo-marrom','Tamanduá-da-soja'],'R7':['Percevejo-marrom','Tamanduá-da-soja'],'R8':['Tamanduá-da-soja'],'Operacional':[]},
+  N: {'VE':['N — Início FBN','P — Enraizamento','Ca — Estrutura celular'],'VC':['N (FBN)','P','Mo — Cofator nitrogenase'],'V1':['N (FBN)','P','Zn — Atividade enzimática'],'V2':['K — Regulação hídrica','S — Síntese aminoácidos','Mn'],'V3':['K','B — Desenvolvimento floral','S','Mn'],'V4':['K','B','Mn + Zn — Fotossíntese','S'],'V5':['K','B','Mn','Ca'],'V6':['K + B','Mn','Ca','Mo'],'R1':['B — Qualidade do pólen','Mo','K','Ca'],'R2':['B + Mo','Ca — Qualidade de vagens','K'],'R3':['Ca','K — Translocação','B','Zn'],'R4':['Ca','K','P — Acumulação amido'],'R5.1':['N — Remobilização foliar','K + P','Zn'],'R5.3':['N','K','P','Cu — Antioxidante'],'R5.5':['N','K + P','Zn + Cu'],'R6':['K + P — Qualidade fisiológica','Zn'],'R7':['K','P'],'R8':[],'Operacional':[]},
+  H: {'VE':['Stimulate® — Enraizamento (TS)','Auxinas — Tropismo radicular'],'VC':['Stimulate® (TS)','Citocininas — Divisão celular'],'V1':['Stimulate® V1-V2','Auxinas','Citocininas'],'V2':['Stimulate®','Brasinoesteroides — Estresse abiótico'],'V3':['Stimulate® V3-V4','Citocininas — Brotação','Booster®'],'V4':['Stimulate® V4','Booster® — Estresse hídrico','Giberelinas'],'V5':['Booster®','Citocininas','Brasinoesteroides'],'V6':['Citocininas','Brasinoesteroides','Booster®'],'R1':['Locus® — Retenção de vagens','Citocininas R1','Mo + Co (FBN)'],'R2':['Locus® R1-R3','Citocininas','Mo + Co'],'R3':['Locus®','Citocininas — Retenção','Ethephon'],'R4':['Locus®','Citocininas','Brasinoesteroides'],'R5.1':['Citocininas — Enchimento','Auxinas remobilização'],'R5.3':['Citocininas','Giberelinas — Elongação'],'R5.5':['Citocininas','Ethephon — Maturação antecipada'],'R6':['Ethephon','Giberelinas'],'R7':['Ethephon — Queda foliar'],'R8':['Ethephon'],'Operacional':[]},
+  C: {
+    'VE':['Correção profunda de solo (calagem / gessagem)','Adubação de sistema','TS com bioestimulantes (Auxina + Citocinina + Giberelina)','Inoculação robusta (Bradyrhizobium + Azospirillum)'],
+    'VC':['Acompanhamento da emergência uniforme','Fornecimento inicial de micros via TS','FBN garantida'],
+    'V1':['Micronutrientes de arranque (Zn, B)','Bioestimulantes para nº de nós'],
+    'V2':['Início do monitoramento de pragas','Micronutrientes (Mn, Zn, B)'],
+    'V3':['Micronutrientes (Mn, Zn, B)','Bioestimulantes — nº de nós produtivos','Monitoramento rigoroso de pragas'],
+    'V4':['Micronutrientes (Mn, Zn, B)','Bioestimulantes — ramificações laterais'],
+    'V5':['Micronutrientes','Bioestimulantes','Monitoramento de pragas'],
+    'V6':['Preparo para florada','Bioestimulantes','Manejo biológico de solo / foliar'],
+    'R1':['Cálcio + Boro (CaB) — fixação de flores','Reguladores — anti-abortamento','1ª aplicação fungicida preventivo (Mancha-alvo + Ferrugem)','Equilíbrio hormonal (Auxina / Citocinina)','Foliar de alta performance'],
+    'R2':['CaB — reduzir abortamento','Reguladores de crescimento','Fungicida preventivo'],
+    'R3':['Bioestimulantes — definição do nº de vagens','Foliar rico em K + S','Manutenção do IAF (folha sadia)','Foliar de alta performance'],
+    'R4':['K + S foliar — potencial de vagens','Bioestimulantes','Manejo da folha'],
+    'R5.1':['K + Mg + S — translocação de fotoassimilados','Fungicida — evitar senescência precoce','Foliar de alta performance'],
+    'R5.3':['K + Mg + S — peso de mil grãos (PMG)','Fungicida — manter folha sadia'],
+    'R5.5':['K + Mg + S — fechamento do PMG','3ª / 4ª aplicação de fungicida'],
+    'R6':['Manutenção sanitária — evitar senescência precoce'],
+    'R7':[],'R8':[],'Operacional':[]
+  } /* Fonte: cases CESB 2024/25 — campeões >120 sc/ha */
+};
+
+var STAGE_DESCRIPTIONS = [['Operacional','Aplicação operacional fora do calendário fenológico'],['VE','Emergência — cotilédones acima do solo'],['VC','Cotiledonar — folhas unifolioladas abertas'],['V1','1° trifólio desenvolvido'],['V2','2° trifólio desenvolvido'],['V3','3° trifólio — início de ramificações'],['V4','4° trifólio — expansão foliar'],['V5','5° trifólio desenvolvido'],['V6','6° trifólio — pré-florescimento'],['R1','Início do florescimento'],['R2','Florescimento pleno'],['R3','Início da formação de vagens (5mm)'],['R4','Vagem plena'],['R5.1','Início enchimento (10–25%)'],['R5.3','Enchimento intermediário (26–50%)'],['R5.5','Enchimento avançado (51–75%)'],['R6','Grão cheio'],['R7','Início da maturação'],['R8','Maturação plena']];
+
+var DOSE_UNITS = ['L/ha','mL/ha','kg/ha','g/ha','mL/100kg'];
+
+/* STATE */
+var state = { title:'Minha Lavoura', produtor:'', fazenda:'', cidade:'', area:'', safra:'', consultor:'', footerLogo:null, stages:[], consol:{grainPrice:'',dueDate:''} };
+var currentTab = 'plan';
+var consolProducts = [];
+
+var tabId = sessionStorage.getItem('mf_tab_id');
+if(!tabId){ tabId='tab_'+Date.now()+'_'+Math.random().toString(36).slice(2,7); sessionStorage.setItem('mf_tab_id',tabId); }
+var STORAGE_KEY = 'mapa_fenologico_v9_'+tabId;
+
+function saveState(){ try{ localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); }catch(e){} }
+function loadState(){
+  try{
+    var r=localStorage.getItem(STORAGE_KEY);
+    if(r){ Object.assign(state, JSON.parse(r)); if(!state.consol) state.consol={grainPrice:'',dueDate:''}; if(state.fazenda===undefined) state.fazenda=''; }
+    state.stages.forEach(function(s){ if(!s.products) s.products=[]; s.products.forEach(function(p){ if(!p.unit) p.unit=''; if(!p.area) p.area=''; if(!p.doseUnit) p.doseUnit='L/ha'; }); });
+  }catch(e){}
+}
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function $(id){ return document.getElementById(id); }
+function calcQty(dose,area){ var d=parseFloat(dose), a=parseFloat(area); if(isNaN(d)||isNaN(a)||a===0) return null; return +(d*a).toFixed(3); }
+function deriveUnit(doseUnit){
+  if(!doseUnit) return '';
+  var u = doseUnit.split('/')[0]; return u||'';
+}
+
+/* TABS */
+function switchTab(t){
+  currentTab=t;
+  if(t==='plan'){
+    $('planView').classList.remove('hidden'); $('consolView').classList.remove('active');
+    $('btnTabPlan').classList.add('active-tab'); $('btnTabConsol').classList.remove('active-tab');
+  } else {
+    $('planView').classList.add('hidden'); $('consolView').classList.add('active');
+    $('btnTabPlan').classList.remove('active-tab'); $('btnTabConsol').classList.add('active-tab');
+    renderConsolidation();
+  }
+}
+$('btnTabPlan').addEventListener('click',function(){ switchTab('plan'); });
+$('btnTabConsol').addEventListener('click',function(){ switchTab('consol'); });
+
+/* HEADER */
+function bindHeaderInputs(){
+  [['hProdutor','produtor'],['hFazenda','fazenda'],['hCidade','cidade'],['hArea','area'],['hSafra','safra']].forEach(function(p){
+    var el=$(p[0]); el.value=state[p[1]]||'';
+    el.addEventListener('input',function(){ state[p[1]]=el.value; saveState(); });
+  });
+}
+
+/* FOOTER */
+function bindFooterInputs(){
+  var fc=$('footerConsultor'); fc.value=state.consultor||'';
+  fc.addEventListener('input',function(){ state.consultor=fc.value; saveState(); });
+  if(state.footerLogo){ $('footerLogoImg').src=state.footerLogo; $('footerLogoImg').style.display='block'; $('footerLogoPlaceholder').style.display='none'; }
+}
+$('footerLogoInput').addEventListener('change',function(){
+  var f=this.files[0]; if(!f) return;
+  var r=new FileReader();
+  r.onload=function(e){ state.footerLogo=e.target.result; saveState(); $('footerLogoImg').src=e.target.result; $('footerLogoImg').style.display='block'; $('footerLogoPlaceholder').style.display='none'; };
+  r.readAsDataURL(f);
+});
+
+/* RENDER PLAN */
+function render(){
+  var cont=$('stagesContainer'), hint=$('canvasHint');
+  hint.style.display = state.stages.length===0 ? 'flex' : 'none';
+  cont.innerHTML='';
+  state.stages.forEach(function(stage,idx){
+    if(idx>0){ var d=document.createElement('div'); d.className='stage-divider'; cont.appendChild(d); }
+    cont.appendChild(buildStageBlock(stage));
+  });
+}
+
+function buildStageBlock(stage){
+  var block=document.createElement('div'); block.className='stage-block';
+  var label=document.createElement('div'); label.className='stage-phase-label';
+  label.contentEditable='true'; label.spellcheck=false; label.textContent=stage.phase||stage.code;
+  label.addEventListener('blur',function(){ stage.phase=label.textContent.trim()||stage.code; saveState(); });
+  label.addEventListener('keydown',function(e){ if(e.key==='Enter'){e.preventDefault();label.blur();} });
+  block.appendChild(label);
+
+  var layout=document.createElement('div'); layout.className='stage-layout';
+  var circle=document.createElement('div'); circle.className='stage-circle';
+  if(stage.image){ var img=document.createElement('img'); img.src=stage.image; circle.appendChild(img); }
+  else { circle.textContent=stage.code==='Operacional'?'OP':stage.code; }
+  circle.addEventListener('click',function(){ pickImage(stage); });
+  layout.appendChild(circle);
+  layout.appendChild(buildProductCard(stage));
+  layout.appendChild(buildCatStrip(stage,layout));
+  block.appendChild(layout);
+  return block;
+}
+
+function buildProductCard(stage){
+  var card=document.createElement('div'); card.className='op-card';
+  var list=document.createElement('div'); list.className='op-product-list';
+  if(stage.products.length===0){
+    var em=document.createElement('div'); em.className='op-product-empty'; em.textContent='Nenhum produto'; list.appendChild(em);
+  } else {
+    stage.products.forEach(function(prod){ list.appendChild(buildProductRow(stage,prod)); });
+  }
+  card.appendChild(list);
+
+  var addRow=document.createElement('div'); addRow.className='op-add-row';
+  var addInp=document.createElement('input'); addInp.className='op-add-input'; addInp.type='text'; addInp.placeholder='+ Produto...';
+  var addBtn=document.createElement('button'); addBtn.className='op-add-btn'; addBtn.textContent='+';
+  function doAdd(){
+    var n=addInp.value.trim(); if(!n) return;
+    stage.products.push({id:uid(),name:n,dose:'',doseUnit:'L/ha',area:'',unit:''});
+    addInp.value=''; saveState(); render();
+  }
+  addBtn.addEventListener('click',doAdd);
+  addInp.addEventListener('keydown',function(e){ if(e.key==='Enter') doAdd(); });
+  addRow.appendChild(addInp); addRow.appendChild(addBtn);
+  card.appendChild(addRow);
+  return card;
+}
+
+function buildProductRow(stage,prod){
+  var wrap=document.createElement('div'); wrap.className='op-prod';
+
+  /* row 1: dot + nome + total + delete */
+  var row1=document.createElement('div'); row1.className='op-prod-row1';
+  var dot=document.createElement('span'); dot.className='op-prod-dot';
+  var nm=document.createElement('span'); nm.className='op-prod-name'; nm.contentEditable='true'; nm.spellcheck=false; nm.textContent=prod.name;
+  nm.addEventListener('blur',function(){ prod.name=nm.textContent.trim()||prod.name; saveState(); });
+  nm.addEventListener('keydown',function(e){ if(e.key==='Enter'){e.preventDefault();nm.blur();} });
+  var tot=document.createElement('span'); tot.className='op-prod-total';
+  var totalVal=calcQty(prod.dose,prod.area);
+  var displayUnit = prod.unit || deriveUnit(prod.doseUnit);
+  tot.textContent = totalVal!==null ? totalVal+(displayUnit?' '+displayUnit:'') : '';
+  var del=document.createElement('button'); del.className='op-prod-del'; del.innerHTML='&times;';
+  del.addEventListener('click',function(e){ e.stopPropagation(); stage.products=stage.products.filter(function(p){return p.id!==prod.id;}); saveState(); render(); });
+  row1.appendChild(dot); row1.appendChild(nm); row1.appendChild(tot); row1.appendChild(del);
+
+  /* row 2: dose + unidade + área inline */
+  var row2=document.createElement('div'); row2.className='op-prod-row2';
+  var dInp=document.createElement('input'); dInp.className='op-edit'; dInp.type='number'; dInp.value=prod.dose; dInp.placeholder='0';
+  var uSel=document.createElement('select'); uSel.className='op-unit-select';
+  DOSE_UNITS.forEach(function(u){ var op=document.createElement('option'); op.value=u; op.textContent=u; if(prod.doseUnit===u) op.selected=true; uSel.appendChild(op); });
+  var sep=document.createElement('span'); sep.className='op-edit-sep'; sep.textContent='·';
+  var aInp=document.createElement('input'); aInp.className='op-edit op-edit-area'; aInp.type='number'; aInp.value=prod.area; aInp.placeholder='área';
+  var haLbl=document.createElement('span'); haLbl.className='op-edit-sep'; haLbl.textContent='ha';
+
+  function refreshTotal(){
+    var tv=calcQty(prod.dose,prod.area);
+    var du=prod.unit||deriveUnit(prod.doseUnit);
+    tot.textContent = tv!==null ? tv+(du?' '+du:'') : '';
+  }
+  dInp.addEventListener('input',function(){ if(this.value.length>7) this.value=this.value.slice(0,7); prod.dose=this.value; saveState(); refreshTotal(); });
+  aInp.addEventListener('input',function(){ if(this.value.length>7) this.value=this.value.slice(0,7); prod.area=this.value; saveState(); refreshTotal(); });
+  uSel.addEventListener('change',function(){ prod.doseUnit=this.value; saveState(); refreshTotal(); });
+
+  row2.appendChild(dInp); row2.appendChild(uSel); row2.appendChild(sep); row2.appendChild(aInp); row2.appendChild(haLbl);
+
+  wrap.appendChild(row1); wrap.appendChild(row2);
+  return wrap;
+}
+
+function buildCatStrip(stage,layoutEl){
+  var strip=document.createElement('div'); strip.className='cat-strip';
+  ['D','I','N','H','C'].forEach(function(k){
+    var btn=document.createElement('button'); btn.className='cat-btn'; btn.title=CAT_META[k].full; btn.textContent=k; btn.dataset.cat=k;
+    btn.addEventListener('click',function(){
+      var ex=layoutEl.querySelector('.mini-card[data-cat="'+k+'"]');
+      if(ex){ ex.remove(); btn.classList.remove('active'); return; }
+      btn.classList.add('active'); layoutEl.appendChild(buildMiniCard(stage.code,k,btn));
+    });
+    strip.appendChild(btn);
+  });
+  return strip;
+}
+
+function buildMiniCard(code,k,trigBtn){
+  var mini=document.createElement('div'); mini.className='mini-card'; mini.dataset.cat=k;
+  var hdr=document.createElement('div'); hdr.className='mini-card-header';
+  var ttl=document.createElement('span'); ttl.className='mini-card-title'; ttl.textContent=CAT_META[k].full;
+  var cl=document.createElement('button'); cl.className='mini-card-close'; cl.innerHTML='&times;';
+  cl.addEventListener('click',function(){ mini.remove(); trigBtn.classList.remove('active'); });
+  hdr.appendChild(ttl); hdr.appendChild(cl); mini.appendChild(hdr);
+  var refs=(STAGE_REF[k]||{})[code]||[];
+  if(!refs.length){ var em=document.createElement('div'); em.className='mini-card-empty'; em.textContent='Sem registros'; mini.appendChild(em); }
+  else { refs.forEach(function(item){ var row=document.createElement('div'); row.className='mini-card-item'; row.textContent=item; mini.appendChild(row); }); }
+  return mini;
+}
+
+function pickImage(stage){
+  var inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
+  inp.addEventListener('change',function(){ var f=inp.files[0]; if(!f) return; var r=new FileReader(); r.onload=function(e){ stage.image=e.target.result; saveState(); render(); }; r.readAsDataURL(f); });
+  inp.click();
+}
+
+/* CONSOLIDAÇÃO */
+function getConsolProd(){
+  var map={};
+  state.stages.forEach(function(stage){
+    stage.products.forEach(function(prod){
+      var k=prod.name.trim().toLowerCase(); if(!k) return;
+      var q=calcQty(prod.dose,prod.area)||0;
+      var u=prod.unit||deriveUnit(prod.doseUnit);
+      if(!map[k]){ map[k]={name:prod.name.trim(),qty:q,unit:u,unitPrice:0,manualQty:null}; }
+      else { map[k].qty=+(map[k].qty+q).toFixed(3); if(!map[k].unit&&u) map[k].unit=u; }
+    });
+  });
+  return Object.values(map);
+}
+
+function renderConsolidation(){
+  /* cabeçalho readonly */
+  var info=$('consolHeaderInfo'); info.innerHTML='';
+  [['Produtor',state.produtor],['Fazenda',state.fazenda],['Cidade / UF',state.cidade],['Área',state.area?(state.area+' ha'):''],['Safra / Talhão',state.safra]].forEach(function(pair){
+    if(!pair[1]) return;
+    var row=document.createElement('div'); row.className='hf-row';
+    var lbl=document.createElement('span'); lbl.className='hf-label'; lbl.textContent=pair[0];
+    var val=document.createElement('span'); val.style.cssText='font-size:.86em;font-weight:500;color:var(--text);'; val.textContent=pair[1];
+    row.appendChild(lbl); row.appendChild(val); info.appendChild(row);
+  });
+
+  $('consolGrainPrice').value=state.consol.grainPrice||'';
+  $('consolDueDate').value=state.consol.dueDate||'';
+
+  var fresh=getConsolProd();
+  consolProducts=fresh.map(function(fp){
+    var prev=consolProducts.find(function(p){return p.name.trim().toLowerCase()===fp.name.trim().toLowerCase();});
+    return {name:fp.name,qty:fp.qty,unit:fp.unit,unitPrice:prev?prev.unitPrice:0,manualQty:prev?prev.manualQty:null};
+  });
+  renderConsolTable(); renderConsolSummary();
+
+  /* rodapé readonly */
+  var ft=$('consolFooterRow'); ft.innerHTML='';
+  var logoDiv=document.createElement('div'); logoDiv.className='footer-logo';
+  if(state.footerLogo){ var li=document.createElement('img'); li.src=state.footerLogo; logoDiv.appendChild(li); }
+  else { logoDiv.innerHTML='<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="5" width="16" height="12" rx="2" stroke="#86868B" stroke-width="1.4"/><circle cx="10" cy="11" r="2.8" stroke="#86868B" stroke-width="1.3"/></svg>'; }
+  ft.appendChild(logoDiv);
+  var consultDiv=document.createElement('div'); consultDiv.className='footer-consult';
+  var lab=document.createElement('span'); lab.className='footer-label'; lab.textContent='Consultor';
+  var val=document.createElement('span'); val.style.cssText='font-size:.86em;color:var(--text);font-weight:500;'; val.textContent=state.consultor||'—';
+  consultDiv.appendChild(lab); consultDiv.appendChild(val);
+  ft.appendChild(consultDiv);
+}
+
+function renderConsolTable(){
+  var body=$('consolTableBody'); body.innerHTML='';
+  if(!consolProducts.length){ var em=document.createElement('div'); em.style.cssText='padding:14px;font-size:.8em;color:var(--text-tertiary);font-style:italic;text-align:center;'; em.textContent='Nenhum produto no planejamento.'; body.appendChild(em); return; }
+  consolProducts.forEach(function(prod,idx){
+    var row=document.createElement('div'); row.className='ctab-row';
+    var nm=document.createElement('div'); nm.className='ctab-name'; nm.textContent=prod.name;
+    var qWrap=document.createElement('div'); qWrap.style.cssText='display:flex;flex-direction:column;align-items:flex-end;';
+    var qInp=document.createElement('input'); qInp.className='ctab-edit'; qInp.type='number'; qInp.value=(prod.manualQty!==null?prod.manualQty:prod.qty)||''; qInp.placeholder='—';
+    qInp.addEventListener('input',function(){ var v=parseFloat(this.value); consolProducts[idx].manualQty=isNaN(v)?null:+v.toFixed(3); renderConsolSummary(); });
+    var qLbl=document.createElement('span'); qLbl.style.cssText='font-size:.62em;color:var(--text-tertiary);'; qLbl.textContent=prod.unit||'';
+    qWrap.appendChild(qInp); qWrap.appendChild(qLbl);
+    var upInp=document.createElement('input'); upInp.className='ctab-edit'; upInp.type='number'; upInp.value=prod.unitPrice||''; upInp.placeholder='0,00';
+    upInp.addEventListener('input',function(){ var v=parseFloat(this.value); consolProducts[idx].unitPrice=isNaN(v)?0:v; renderConsolSummary(); });
+    var eq=prod.manualQty!==null?prod.manualQty:prod.qty;
+    var t=(prod.unitPrice||0)*(eq||0);
+    var totEl=document.createElement('div'); totEl.className='ctab-total'; totEl.id='ctot-'+idx;
+    totEl.textContent=t>0?'R$'+t.toFixed(2).replace('.',','):'—';
+    row.appendChild(nm); row.appendChild(qWrap); row.appendChild(upInp); row.appendChild(totEl);
+    body.appendChild(row);
+  });
+}
+
+function renderConsolSummary(){
+  var total=0;
+  consolProducts.forEach(function(prod,idx){
+    var eq=prod.manualQty!==null?prod.manualQty:prod.qty;
+    var t=(prod.unitPrice||0)*(eq||0);
+    var el=document.getElementById('ctot-'+idx);
+    if(el) el.textContent=t>0?'R$'+t.toFixed(2).replace('.',','):'—';
+    total+=t;
+  });
+  $('consolTotalInvest').textContent='R$ '+total.toFixed(2).replace('.',',');
+  var area=parseFloat(state.area)||0;
+  $('consolCostHa').textContent=area>0?'R$ '+(total/area).toFixed(2).replace('.',',')+' / ha':'— / ha';
+  var grain=parseFloat(state.consol.grainPrice)||0;
+  if(grain>0&&area>0){ var sc=(total/area)/(grain/60); $('consolCostSc').textContent=sc.toFixed(2).replace('.',',')+' sc / ha'; }
+  else { $('consolCostSc').textContent='—'; }
+  var due=state.consol.dueDate;
+  if(due){ $('consolDueDateRow').style.display='flex'; $('consolDueDateDisplay').textContent=fmtDate(due); }
+  else { $('consolDueDateRow').style.display='none'; }
+}
+function fmtDate(d){ var p=d.split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:d; }
+$('consolGrainPrice').addEventListener('input',function(){ state.consol.grainPrice=this.value; saveState(); renderConsolSummary(); });
+$('consolDueDate').addEventListener('change',function(){ state.consol.dueDate=this.value; saveState(); renderConsolSummary(); });
+
+/* MODAL */
+function addStage(code,phase){ state.stages.push({id:uid(),code:code,phase:phase||code,image:null,products:[]}); saveState(); render(); }
+function openStageModal(){ $('stageCodeSelect').value=''; $('stagePhaseName').value=''; $('modalStageOverlay').classList.add('active'); }
+function closeStageModal(){ $('modalStageOverlay').classList.remove('active'); }
+function confirmStage(){ var c=$('stageCodeSelect').value; if(!c) return; addStage(c,$('stagePhaseName').value.trim()); closeStageModal(); }
+$('btnNewStage').addEventListener('click',openStageModal);
+$('modalStageClose').addEventListener('click',closeStageModal);
+$('modalStageCancelBtn').addEventListener('click',closeStageModal);
+$('modalStageConfirmBtn').addEventListener('click',confirmStage);
+$('modalStageOverlay').addEventListener('click',function(e){ if(e.target===e.currentTarget) closeStageModal(); });
+
+/* DRAWER */
+$('btnHamburger').addEventListener('click',function(){ $('drawer').classList.add('open'); $('drawerOverlay').classList.add('active'); });
+function closeDrawer(){ $('drawer').classList.remove('open'); $('drawerOverlay').classList.remove('active'); }
+$('drawerClose').addEventListener('click',closeDrawer);
+$('drawerOverlay').addEventListener('click',closeDrawer);
+
+function buildDrawer(){
+  var body=$('drawerBody'); body.innerHTML='';
+  /* Estádios */
+  var st=createDS('estadios','VE','Estádios Fenológicos','Soja — VE até R8');
+  STAGE_DESCRIPTIONS.forEach(function(p){ var it=document.createElement('div'); it.className='ref-item'; var c=document.createElement('span'); c.className='ref-code'; c.textContent=p[0]; var d=document.createElement('span'); d.className='ref-desc'; d.textContent=p[1]; it.appendChild(c); it.appendChild(d); st.content.appendChild(it); });
+  body.appendChild(st.section);
+  /* Categorias */
+  ['D','I','N','H','C'].forEach(function(k){
+    var s=createDS(k,k,CAT_META[k].full,'Por estádio');
+    Object.keys(STAGE_REF[k]||{}).filter(function(code){return code!=='Operacional';}).forEach(function(code){
+      var items=STAGE_REF[k][code]||[]; if(!items.length) return;
+      var g=document.createElement('div'); g.className='ref-group';
+      var ti=document.createElement('div'); ti.className='ref-group-title'; ti.textContent=code; g.appendChild(ti);
+      items.forEach(function(item){ var row=document.createElement('div'); row.className='ref-row'; var n=document.createElement('span'); n.className='ref-row-name'; n.textContent=item; row.appendChild(n); g.appendChild(row); });
+      s.content.appendChild(g);
+    });
+    body.appendChild(s.section);
+  });
+}
+function createDS(id,letter,title,sub){
+  var sec=document.createElement('div'); sec.className='drawer-section';
+  var hdr=document.createElement('div'); hdr.className='drawer-section-header'; hdr.dataset.section=id;
+  var ic=document.createElement('div'); ic.className='drawer-letter'; ic.textContent=letter;
+  var txt=document.createElement('div'); var t=document.createElement('div'); t.className='drawer-section-title'; t.textContent=title; var sb=document.createElement('div'); sb.className='drawer-section-sub'; sb.textContent=sub; txt.appendChild(t); txt.appendChild(sb);
+  var chev=document.createElementNS('http://www.w3.org/2000/svg','svg'); chev.setAttribute('class','drawer-chevron'); chev.setAttribute('width','14'); chev.setAttribute('height','14'); chev.setAttribute('viewBox','0 0 14 14'); chev.innerHTML='<path d="M3 5L7 9L11 5" stroke="#86868B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>';
+  hdr.appendChild(ic); hdr.appendChild(txt); hdr.appendChild(chev);
+  var cnt=document.createElement('div'); cnt.className='drawer-section-content'; cnt.id='sec-'+id;
+  hdr.addEventListener('click',function(){
+    var open=cnt.classList.contains('open');
+    document.querySelectorAll('.drawer-section-content').forEach(function(c){c.classList.remove('open');});
+    document.querySelectorAll('.drawer-section-header').forEach(function(h){h.classList.remove('open');});
+    if(!open){cnt.classList.add('open');hdr.classList.add('open');}
+  });
+  sec.appendChild(hdr); sec.appendChild(cnt);
+  return {section:sec,content:cnt};
+}
+
+/* TITLE */
+var titleEl=$('appTitle');
+titleEl.addEventListener('blur',function(){ state.title=titleEl.textContent.trim()||'Minha Lavoura'; saveState(); });
+titleEl.addEventListener('keydown',function(e){ if(e.key==='Enter'){e.preventDefault();titleEl.blur();} });
+
+/* INIT */
+loadState();
+if(state.title) titleEl.textContent=state.title;
+bindHeaderInputs(); bindFooterInputs(); buildDrawer(); render();
+
+/* PWA — Service Worker para funcionar offline */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    /* tenta carregar sw.js do mesmo diretório (necessário em https / github pages) */
+    navigator.serviceWorker.register('./sw.js', { scope: './' })
+      .then(function(reg){ /* registrado com sucesso */ })
+      .catch(function(){ /* sem sw.js disponível — segue só com localStorage */ });
+  });
+}
+})();
+</script>
+</body>
+</html>
