@@ -50,14 +50,26 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
 .canvas-hint-icon { width:46px; height:46px; border-radius:50%; background:var(--bg-secondary); display:flex; align-items:center; justify-content:center; font-size:1.5em; color:var(--text-tertiary); }
 
 /* HEADER CARD — label esquerda / input direita */
-.header-card { background:rgba(255,255,255,.95); border:1px solid var(--border-soft); border-radius:var(--radius-sm); box-shadow:var(--shadow-sm); padding:10px 14px; margin-bottom:14px; display:flex; flex-direction:column; gap:7px; }
-.hf-row { display:flex; align-items:center; border-bottom:.5px solid var(--border-soft); padding:5px 0; gap:10px; }
+.header-card { background:rgba(255,255,255,.95); border:1px solid var(--border-soft); border-radius:var(--radius-sm); box-shadow:var(--shadow-sm); padding:10px 14px; margin-bottom:14px; display:flex; flex-direction:column; }
+/* linha horizontal — agrupa múltiplos hf-row lado a lado */
+.hf-line { display:flex; align-items:stretch; border-bottom:.5px solid var(--border-soft); }
+.hf-line:last-child { border-bottom:none; }
+.hf-line .hf-row { border-bottom:none; flex:1; min-width:0; }
+.hf-line .hf-row + .hf-row { border-left:.5px solid var(--border-soft); padding-left:12px; }
+.hf-row { display:flex; align-items:center; border-bottom:.5px solid var(--border-soft); padding:5px 0; gap:8px; }
 .hf-row:last-child { border-bottom:none; }
-.hf-label { font-size:.66em; font-weight:600; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; min-width:90px; flex-shrink:0; }
-.hf-input { flex:1; border:none; outline:none; background:transparent; font-size:.86em; font-weight:500; color:var(--text); font-family:var(--font); user-select:text; -webkit-user-select:text; }
+.hf-label { font-size:.66em; font-weight:600; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; min-width:64px; flex-shrink:0; }
+.hf-input { flex:1; border:none; outline:none; background:transparent; font-size:.86em; font-weight:500; color:var(--text); font-family:var(--font); user-select:text; -webkit-user-select:text; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .hf-input::placeholder { color:var(--text-tertiary); font-weight:400; }
 .hf-input:focus { color:var(--blue); }
-.hf-input-sm { max-width:80px; }
+.hf-input-sm { max-width:70px; }
+/* no mobile as linhas agrupadas viram colunas */
+@media (max-width:600px) {
+  .hf-line { flex-direction:column; border-bottom:none; }
+  .hf-line .hf-row { border-bottom:.5px solid var(--border-soft); }
+  .hf-line:last-child .hf-row:last-child { border-bottom:none; }
+  .hf-line .hf-row + .hf-row { border-left:none; padding-left:0; }
+}
 
 /* STAGE BLOCKS */
 .stage-block { display:flex; flex-direction:column; align-items:flex-start; margin-bottom:8px; animation:fadeInUp .2s ease; }
@@ -259,11 +271,17 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
     <!-- PLANEJAMENTO -->
     <div class="plan-view" id="planView">
       <div class="header-card">
-        <div class="hf-row"><span class="hf-label">Produtor</span><input class="hf-input" id="hProdutor" type="text" placeholder="Nome do produtor"></div>
-        <div class="hf-row"><span class="hf-label">Fazenda</span><input class="hf-input" id="hFazenda" type="text" placeholder="Nome da fazenda"></div>
-        <div class="hf-row"><span class="hf-label">Cidade / UF</span><input class="hf-input" id="hCidade" type="text" placeholder="Cidade / Estado"></div>
-        <div class="hf-row"><span class="hf-label">Área (ha)</span><input class="hf-input hf-input-sm" id="hArea" type="number" placeholder="0" maxlength="7"></div>
-        <div class="hf-row"><span class="hf-label">Safra / Talhão</span><input class="hf-input" id="hSafra" type="text" placeholder="Ex: 2025/26 — T01"></div>
+        <!-- Linha 1: Produtor + Fazenda + Área -->
+        <div class="hf-line">
+          <div class="hf-row"><span class="hf-label">Produtor</span><input class="hf-input" id="hProdutor" type="text" placeholder="Nome do produtor"></div>
+          <div class="hf-row"><span class="hf-label">Fazenda</span><input class="hf-input" id="hFazenda" type="text" placeholder="Nome da fazenda"></div>
+          <div class="hf-row" style="flex:0 0 auto;"><span class="hf-label">Área (ha)</span><input class="hf-input hf-input-sm" id="hArea" type="number" placeholder="0" maxlength="7"></div>
+        </div>
+        <!-- Linha 2: Cidade + Safra -->
+        <div class="hf-line">
+          <div class="hf-row"><span class="hf-label">Cidade / UF</span><input class="hf-input" id="hCidade" type="text" placeholder="Cidade / Estado"></div>
+          <div class="hf-row"><span class="hf-label">Safra / Talhão</span><input class="hf-input" id="hSafra" type="text" placeholder="Ex: 2025/26 — T01"></div>
+        </div>
       </div>
 
       <div class="canvas-hint" id="canvasHint">
